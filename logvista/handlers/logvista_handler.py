@@ -5,8 +5,10 @@ import sys
 import traceback
 import psutil
 import logging
+import pytz
 from uuid import uuid4
 from pathlib import Path
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -39,10 +41,11 @@ class LogChunk:
     cpu_user_time: float
     cpu_system_time: float
     cpu_idle_time: float
+    timestamp: datetime
 
 
 class LogvistaHandler(logging.Handler):
-    def __init__(self, system_name: str):
+    def __init__(self, system_name: str, timezone: str = "Asia/Tokyo"):
         super().__init__()
         self.directory = Path.home() / ".logvista"
         if not os.path.exists(self.directory):
@@ -51,11 +54,17 @@ class LogvistaHandler(logging.Handler):
         filename = re.sub(r'[ \-./]', '_', self.system_name.lower())
         full_path = os.path.join(self.directory, f"{filename}.logvista")
         self.full_path = full_path
+        self.timezone = timezone
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
             exc_type, exc_value, tb = sys.exc_info()
-            exc_info_dict = {}
+            exc_info_dict = {
+                "exc_type": "",
+                "exc_value": "",
+                "exc_detail": "",
+                "traceback": [],
+            }
             if tb:
                 tb_list = traceback.extract_tb(tb)
                 tb_dicts = []
@@ -66,15 +75,12 @@ class LogvistaHandler(logging.Handler):
                         "tb_name": frame.name,
                         "tb_line": frame.line
                     })
-                exc_info_dict = {
-                    "exc_type": exc_type.__name__,
-                    "exc_value": str(exc_value),
-                    "exc_detail": ''.join(traceback.format_exception(exc_type, exc_value, tb)).replace('\n', '\\n'),
-                    "traceback": tb_dicts,
-                }
+                exc_info_dict["exc_type"] = exc_type.__name__
+                exc_info_dict["exc_value"] = str(exc_value)
+                exc_info_dict["exc_detail"] = ''.join(traceback.format_exception(exc_type, exc_value, tb)).replace('\n', '\\n')
+                exc_info_dict["traceback"] = tb_dicts
             virtual_memory_info = psutil.virtual_memory()._asdict()
             cpu_times_info = psutil.cpu_times()._asdict()
-
             data = LogChunk(
                 id=str(uuid4()),
                 system_name=self.system_name,
@@ -86,7 +92,7 @@ class LogvistaHandler(logging.Handler):
                 file_name=record.filename,
                 func_name=record.funcName,
                 lineno=record.lineno,
-                message=record.message,
+                message=record.msg,
                 module=record.module,
                 name=record.name,
                 level_name=record.levelname,
@@ -102,18 +108,15 @@ class LogvistaHandler(logging.Handler):
                 free_memory=virtual_memory_info["free"],
                 cpu_user_time=cpu_times_info["user"],
                 cpu_system_time=cpu_times_info["system"],
-                cpu_idle_time=cpu_times_info["idle"]
+                cpu_idle_time=cpu_times_info["idle"],
+                timestamp=datetime.now(pytz.timezone(self.timezone)).isoformat(),
             )
-
             try:
                 self.append_data_to_buffer(data.__dict__)
             except Exception as e:
-                print("Error", e)
-                pass
-
+                raise e
         except Exception as e:
-            print("Error", e)
-            pass
+            raise e
 
     def append_data_to_buffer(self, new_data):
         with open(self.full_path, "a") as f:
