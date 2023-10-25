@@ -1,14 +1,12 @@
 import os
 import json
 import re
-import msgpack
 import sys
 import traceback
 import psutil
 import logging
 from uuid import uuid4
 from pathlib import Path
-from pprint import pprint
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -106,16 +104,15 @@ class LogvistaHandler(logging.Handler):
                 cpu_system_time=cpu_times_info["system"],
                 cpu_idle_time=cpu_times_info["idle"]
             )
-            pprint(data.__dict__)
 
             try:
                 self.append_data_to_buffer(data.__dict__)
             except Exception as e:
-                print("Error-内側", e)
+                print("Error", e)
                 pass
 
         except Exception as e:
-            print("Error-外側", e)
+            print("Error", e)
             pass
 
     def append_data_to_buffer(self, new_data):
