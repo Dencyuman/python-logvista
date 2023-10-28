@@ -92,7 +92,7 @@ class LogvistaHandler(logging.Handler):
                 file_name=record.filename,
                 func_name=record.funcName,
                 lineno=record.lineno,
-                message=record.msg,
+                message=str(record.msg),
                 module=record.module,
                 name=record.name,
                 level_name=record.levelname,
