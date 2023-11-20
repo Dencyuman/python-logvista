@@ -51,7 +51,7 @@ class LogvistaHandler(logging.Handler):
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
         self.system_name = system_name
-        filename = re.sub(r'[ \-./]', '_', self.system_name.lower())
+        filename = re.sub(r'[ \-./:;]', '_', self.system_name.lower())
         full_path = os.path.join(self.directory, f"{filename}.logvista")
         self.full_path = full_path
         self.timezone = timezone
